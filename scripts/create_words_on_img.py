@@ -9,14 +9,22 @@ import codecs
 
 fonts_test=0
 debug=0
+NUM_WORDS=400
+bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
+words_img_path='result/'
+words_path='conf/260_words.txt'
 
 def text_on_img(img_name,text,font_file,font_sizes,colors):
     img=Image.open(img_name)
     width=img.size[0]
     height=img.size[1]
-    
+
+   
     # get random settings.
     font_size=random.choice(font_sizes)
+    
+    if width < 2*font_size or height < 2*font_size :
+        return [0,0,0,0],img
     color=colors[random.randint(0,len(colors)-1)]
     loc=(random.randint(0,width-font_size-1),\
             random.randint(0,height-font_size-1))
@@ -37,13 +45,18 @@ def text_on_img(img_name,text,font_file,font_sizes,colors):
     return bbox,img
 
 if __name__ == "__main__":
-    bg_imgs_path='image/'
-    words_img_path='result/'
     if not os.path.exists(words_img_path):
         os.popen("mkdir -p %s"%words_img_path)
-    img_path=Path(bg_imgs_path)
+    if os.path.isdir(bg_imgs_path):
+        img_path=Path(bg_imgs_path)
+        imgs=img_path.files()
+    elif os.path.isfile(bg_imgs_path):
+        with open(bg_imgs_path,'r') as f:
+            imgs=f.readlines()
+    # we can also get files is way.
+    #imgs=[f for f in os.listdir(words_img_path) if os.path.isfile(os.path.join(words_img_path,f))]
+
     fonts_path=Path('fonts/')
-    words_path='conf/words.txt'
     label_file='word_label.txt'
     # 'classification' for different label of words
     # 'detection' for label 1 for all words 
@@ -63,9 +76,6 @@ if __name__ == "__main__":
 
     colors=[(0,0,0),(255,0,0),(0,255,0),(0,0,255)]
     font_sizes=[18,20,22,24,28,32,36,40,44,48,54,60,66]
-    # we can also get files is way.
-    #imgs=[f for f in os.listdir(words_img_path) if os.path.isfile(os.path.join(words_img_path,f))]
-    imgs=img_path.files()
     font_files=fonts_path.files()
 
     # show the different fonts on the image.
@@ -79,7 +89,6 @@ if __name__ == "__main__":
                 continue
         sys.exit()
 
-    NUM_WORDS=50
     bg_img_pick=[]
     font_pick=[]
     bg_img_idx=0
@@ -97,7 +106,8 @@ if __name__ == "__main__":
         if not os.path.exists(words_img_path + label_folder):
             os.popen("mkdir -p %s"%(words_img_path + label_folder))
         # create words on image.
-        for idx in xrange(NUM_WORDS):
+        idx = 0
+        while(idx < NUM_WORDS):
             img_name="/%s_%d"%(word,idx)
             
             # choose the background.
@@ -111,7 +121,9 @@ if __name__ == "__main__":
                 font_file_idx = 0
 
             # draw text on image.
-            bbox,img=text_on_img(imgs[bg_img_idx],words[word],font_files[font_file_idx],font_sizes,colors)
+            bbox,img=text_on_img(imgs[bg_img_idx].strip(),words[word],font_files[font_file_idx],font_sizes,colors)
+            if bbox[-1] == 0:
+                continue
             with open(words_img_path+label_folder+img_name+".txt",'w') as label_file:
                 label=word
                 if label_type == 'detection':
@@ -127,6 +139,7 @@ if __name__ == "__main__":
                 draw.rectangle((bbox[0],bbox[1],\
                     bbox[0] + bbox[2],bbox[1] + bbox[3]),outline = "red")
                 img.save(words_img_path + 'tt.jpg','JPEG')
+            idx += 1
 
     anno.close()
     
