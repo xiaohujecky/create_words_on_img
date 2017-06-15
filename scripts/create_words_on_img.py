@@ -41,7 +41,7 @@ def text_on_img(img_name,text,font_file,font_sizes,colors):
     else:
         draw.text(loc,text,color,font=font)
 
-    bbox=[loc[0],loc[1],font_size,font_size]
+    bbox=[loc[0],loc[1],int(loc[0])+font_size,int(loc[1])+font_size]
     return bbox,img
 
 if __name__ == "__main__":
