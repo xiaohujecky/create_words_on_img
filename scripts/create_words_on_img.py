@@ -5,20 +5,22 @@ import random
 from path import Path
 import os
 import sys
+import copy
+import math
 import codecs
 
 fonts_test=0
 debug=0
-NUM_WORDS=400
-bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
+NUM_WORDS=50
+bg_imgs_path='image.txt'
+bg_imgs_path='/Users/xiaohu/tongdun/textDetect/image/10k.txt'
 words_img_path='result/'
-words_path='conf/260_words.txt'
+words_path='conf/words_all.txt'
 
 def text_on_img(img_name,text,font_file,font_sizes,colors):
     img=Image.open(img_name)
     width=img.size[0]
     height=img.size[1]
-
    
     # get random settings.
     font_size=random.choice(font_sizes)
@@ -43,6 +45,48 @@ def text_on_img(img_name,text,font_file,font_sizes,colors):
 
     bbox=[loc[0],loc[1],int(loc[0])+font_size,int(loc[1])+font_size]
     return bbox,img
+
+def multi_text_on_img(img_name,text,texts,font_file,font_sizes,colors):
+    img=Image.open(img_name)
+    width=img.size[0]
+    height=img.size[1]
+    
+    # get random settings.
+    font_size=random.choice(font_sizes)
+    if width < 2*font_size or height < 2*font_size :
+        return [[0,0,0,0]],img
+    max_num_words_w = width / (font_size*2) 
+    max_num_words_h = height / (font_size*2) 
+    color_idx=random.randint(0,len(colors)-1)
+    font=ImageFont.truetype(font_file,font_size)
+    draw=ImageDraw.Draw(img)
+    
+    h_list=range(1,height-font_size-1,random.randint(font_size,2*font_size))
+    h_loc=random.sample(h_list, random.randint(1,min(5,len(h_list))))
+    if len(h_loc) <= 0:
+        h_loc=[random.randint(0,height-font_size-1)]
+   
+    bboxes=[]
+    for h in h_loc:
+        w_list=range(1,width-font_size-1,random.randint(font_size,3*font_size))
+        w_loc=random.sample(w_list, random.randint(len(w_list)/2,len(w_list)))
+        if len(w_loc) <= 0:
+            w_loc=[random.randint(0,width-font_size-1)]
+        for w in w_loc:
+            loc=(w,h)
+            img_color=img.getpixel(loc)
+            color=colors[color_idx]
+            if (math.fabs(color[0]-img_color[0]) + \
+                    math.fabs(color[0]-img_color[0]) + \
+                    math.fabs(color[0]-img_color[0])) < 20:
+                color_idx += 1
+            if (color_idx >= len(colors)):
+                color_idx=0
+            color=colors[color_idx]
+            draw.text(loc,text,color,font=font)
+            text=texts[random.choice(texts.keys())]
+            bboxes.append([loc[0],loc[1],int(loc[0])+font_size,int(loc[1])+font_size])
+    return bboxes,img
 
 if __name__ == "__main__":
     if not os.path.exists(words_img_path):
@@ -121,14 +165,16 @@ if __name__ == "__main__":
                 font_file_idx = 0
 
             # draw text on image.
-            bbox,img=text_on_img(imgs[bg_img_idx].strip(),words[word],font_files[font_file_idx],font_sizes,colors)
-            if bbox[-1] == 0:
+            bboxes,img=multi_text_on_img(imgs[bg_img_idx].strip(),words[word],\
+                    copy.copy(words),font_files[font_file_idx],font_sizes,colors)
+            if bboxes[0][-1] == 0:
                 continue
             with open(words_img_path+label_folder+img_name+".txt",'w') as label_file:
                 label=word
                 if label_type == 'detection':
                     label='1'
-                label_file.write("%d %d %d %d %d\n"%(\
+                for bbox in bboxes:
+                    label_file.write("%d %d %d %d %d\n"%(\
                         int(label),bbox[0],bbox[1],bbox[2],bbox[3]))
             img.save(words_img_path+img_folder+img_name+'.jpg','JPEG')
 
@@ -140,7 +186,7 @@ if __name__ == "__main__":
                     bbox[0] + bbox[2],bbox[1] + bbox[3]),outline = "red")
                 img.save(words_img_path + 'tt.jpg','JPEG')
             idx += 1
-
+        break
     anno.close()
     
 
