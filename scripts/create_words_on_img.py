@@ -11,11 +11,12 @@ import codecs
 
 fonts_test=0
 debug=0
-NUM_WORDS=50
+NUM_WORDS=100
 bg_imgs_path='image.txt'
-bg_imgs_path='/Users/xiaohu/tongdun/textDetect/image/10k.txt'
-words_img_path='result/'
+bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
 words_path='conf/words_all.txt'
+words_img_path='result/v3_multi_words_cls/'
+single_words_img_path=words_img_path + 'words_classify/'
 
 def text_on_img(img_name,text,font_file,font_sizes,colors):
     img=Image.open(img_name)
@@ -46,7 +47,7 @@ def text_on_img(img_name,text,font_file,font_sizes,colors):
     bbox=[loc[0],loc[1],int(loc[0])+font_size,int(loc[1])+font_size]
     return bbox,img
 
-def multi_text_on_img(img_name,text,texts,font_file,font_sizes,colors):
+def multi_text_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
     img=Image.open(img_name)
     width=img.size[0]
     height=img.size[1]
@@ -67,6 +68,7 @@ def multi_text_on_img(img_name,text,texts,font_file,font_sizes,colors):
         h_loc=[random.randint(0,height-font_size-1)]
    
     bboxes=[]
+    word_id = text_id
     for h in h_loc:
         w_list=range(1,width-font_size-1,random.randint(font_size,3*font_size))
         w_loc=random.sample(w_list, random.randint(len(w_list)/2,len(w_list)))
@@ -83,10 +85,42 @@ def multi_text_on_img(img_name,text,texts,font_file,font_sizes,colors):
             if (color_idx >= len(colors)):
                 color_idx=0
             color=colors[color_idx]
+            text=texts[word_id]
             draw.text(loc,text,color,font=font)
-            text=texts[random.choice(texts.keys())]
-            bboxes.append([loc[0],loc[1],int(loc[0])+font_size,int(loc[1])+font_size])
+            bboxes.append([loc[0],\
+                    loc[1],\
+                    int(loc[0])+font_size,\
+                    int(loc[1])+font_size,\
+                    text.encode('utf-8')],\
+                    word_id)
+            word_id=random.choice(texts.keys())
     return bboxes,img
+
+def create_word_cls_data(img, bbox, words_num, cls_label_file, crop_offset=5):
+    word_id=bbox[5]
+    word_path=single_words_img_path + '/{}/'.format(word_id)
+    check_path(word_path)
+    word_fname=word_path + '{}_{}.png'.format(word_id,words_num)
+   
+    xmin=bbox[0] + random.choice(xrange(-crop_offset,crop_offset+1))
+    ymin=bbox[1] + random.choice(xrange(-crop_offset,crop_offset+1))
+    xmax=bbox[2] + random.choice(xrange(-crop_offset,crop_offset+1))
+    ymax=bbox[3] + random.choice(xrange(-crop_offset,crop_offset+1))
+    xmin = max(1,xmin)
+    ymin = max(1,ymin)
+    xmax = min(img.size[0]-1, xmax)
+    ymax = min(img.size[1]-1, ymax)
+    crop_size=(xmin,ymin,xmax,ymax)
+
+    img.crop(crop_size)
+    img.save(word_fname,'JPEG')
+    
+    cls_label_file.write('%s %d\n'%(word_fname,word_id))
+    return 
+
+def check_path(a_path):
+    if not os.path.exists(a_path):
+        os.popen("mkdir -p %s"%a_path)
 
 if __name__ == "__main__":
     if not os.path.exists(words_img_path):
@@ -105,6 +139,7 @@ if __name__ == "__main__":
     # 'classification' for different label of words
     # 'detection' for label 1 for all words 
     label_type='detection' 
+    label_type='classification' 
     
     words={}
     with open(words_path,'r') as f:
@@ -137,12 +172,15 @@ if __name__ == "__main__":
     font_pick=[]
     bg_img_idx=0
     font_file_idx=0
+    word_idx=0
+    words_num={}
+    random.shuffle(imgs)
+    bg_imgs_size=len(imgs)
+    random.shuffle(font_files)
+    fonts_size=len(font_files)
     anno=open(words_img_path+'/'+label_file, 'w')
+    anno_cls=open(single_words_img_path+'/'+label_file, 'w')
     for word in words:
-        random.shuffle(imgs)
-        bg_imgs_size=len(imgs)
-        random.shuffle(font_files)
-        fonts_size=len(font_files)
         img_folder='/img_%s'%word
         label_folder='/gt_%s'%word
         if not os.path.exists(words_img_path + img_folder):
@@ -156,17 +194,17 @@ if __name__ == "__main__":
             
             # choose the background.
             bg_img_idx += 1
-            if bg_img_idx >= bg_imgs_size - 1:
+            if bg_img_idx > bg_imgs_size - 1:
                 bg_img_idx = 0
 
             # choose the font.
             font_file_idx += 1
-            if font_file_idx >= fonts_size - 1:
+            if font_file_idx > fonts_size - 1:
                 font_file_idx = 0
 
             # draw text on image.
-            bboxes,img=multi_text_on_img(imgs[bg_img_idx].strip(),words[word],\
-                    copy.copy(words),font_files[font_file_idx],font_sizes,colors)
+            bboxes,img=multi_text_on_img(imgs[bg_img_idx].strip(),word,\
+                    words,font_files[font_file_idx],font_sizes,colors)
             if bboxes[0][-1] == 0:
                 continue
             with open(words_img_path+label_folder+img_name+".txt",'w') as label_file:
@@ -176,6 +214,11 @@ if __name__ == "__main__":
                 for bbox in bboxes:
                     label_file.write("%d %d %d %d %d\n"%(\
                         int(label),bbox[0],bbox[1],bbox[2],bbox[3]))
+                    if bbox[4] not in words_num:
+                        words_num[bbox[4]]=1
+                    else:
+                        words_num[bbox[4]] += 1
+                    create_word_cls_data(img,bbox,words_num[bbox[4]],anno_cls)
             img.save(words_img_path+img_folder+img_name+'.jpg','JPEG')
 
             anno.write("%s %s\n"%(words_img_path+img_folder+img_name+'.jpg',\
@@ -186,7 +229,14 @@ if __name__ == "__main__":
                     bbox[0] + bbox[2],bbox[1] + bbox[3]),outline = "red")
                 img.save(words_img_path + 'tt.jpg','JPEG')
             idx += 1
-        break
+        word_idx += 1
+        print "Generating No. {} - {} .".format(word_idx,words[word].encode('utf-8'))
     anno.close()
+    anno_cls.close()
+    words_num_info=open(words_img_path + '/words_num_info.txt','w')
+    words_num_info.write("word num\n")
+    for word in words_num:
+        words_num_info.write("%s %s\n"%(word,words_num[word]))
+    words_num_info.close()
     
 
