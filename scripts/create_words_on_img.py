@@ -11,11 +11,13 @@ import codecs
 
 fonts_test=0
 debug=0
-NUM_WORDS=100
+save_detection_img=False
+NUM_WORDS=200
 bg_imgs_path='image.txt'
 bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
-words_path='conf/words_all.txt'
-words_img_path='result/v3_multi_words_cls/'
+bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img.txt'
+words_path='conf/words500.txt'
+words_img_path='result/v6_multi_words_cls_500/'
 single_words_img_path=words_img_path + 'words_classify/'
 
 def text_on_img(img_name,text,font_file,font_sizes,colors):
@@ -48,7 +50,14 @@ def text_on_img(img_name,text,font_file,font_sizes,colors):
     return bbox,img
 
 def multi_text_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
-    img=Image.open(img_name)
+    img=0
+    img_orig=0
+    try:
+        img=Image.open(img_name)
+        #img_orig=Image.open(img_name)
+    except:
+        return [[0,0,0,0]],img
+
     width=img.size[0]
     height=img.size[1]
     
@@ -80,7 +89,7 @@ def multi_text_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
             color=colors[color_idx]
             if (math.fabs(color[0]-img_color[0]) + \
                     math.fabs(color[0]-img_color[0]) + \
-                    math.fabs(color[0]-img_color[0])) < 20:
+                    math.fabs(color[0]-img_color[0])) < 30:
                 color_idx += 1
             if (color_idx >= len(colors)):
                 color_idx=0
@@ -91,31 +100,36 @@ def multi_text_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
                     loc[1],\
                     int(loc[0])+font_size,\
                     int(loc[1])+font_size,\
-                    text.encode('utf-8')],\
-                    word_id)
+                    text.encode('utf-8'),\
+                    word_id])
             word_id=random.choice(texts.keys())
     return bboxes,img
 
-def create_word_cls_data(img, bbox, words_num, cls_label_file, crop_offset=5):
+def create_word_cls_data(img, bbox, words_num, cls_label_file, offset=0.1):
     word_id=bbox[5]
     word_path=single_words_img_path + '/{}/'.format(word_id)
     check_path(word_path)
     word_fname=word_path + '{}_{}.png'.format(word_id,words_num)
-   
-    xmin=bbox[0] + random.choice(xrange(-crop_offset,crop_offset+1))
-    ymin=bbox[1] + random.choice(xrange(-crop_offset,crop_offset+1))
-    xmax=bbox[2] + random.choice(xrange(-crop_offset,crop_offset+1))
-    ymax=bbox[3] + random.choice(xrange(-crop_offset,crop_offset+1))
+  
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+    
+    crop_offset_w = int(width*offset)
+    crop_offset_h = int(height*offset)
+    xmin=bbox[0] + random.choice(xrange(-crop_offset_w*2,0))
+    ymin=bbox[1] + random.choice(xrange(-crop_offset_w*2,0))
+    xmax=bbox[2] + random.choice(xrange(0,crop_offset_h*2))
+    ymax=bbox[3] + random.choice(xrange(0,crop_offset_h*2))
     xmin = max(1,xmin)
     ymin = max(1,ymin)
     xmax = min(img.size[0]-1, xmax)
     ymax = min(img.size[1]-1, ymax)
     crop_size=(xmin,ymin,xmax,ymax)
 
-    img.crop(crop_size)
-    img.save(word_fname,'JPEG')
+    patch=img.crop(crop_size)
+    patch.save(word_fname,'JPEG')
     
-    cls_label_file.write('%s %d\n'%(word_fname,word_id))
+    cls_label_file.write('%s %s\n'%(word_fname,word_id))
     return 
 
 def check_path(a_path):
@@ -125,6 +139,7 @@ def check_path(a_path):
 if __name__ == "__main__":
     if not os.path.exists(words_img_path):
         os.popen("mkdir -p %s"%words_img_path)
+    check_path(single_words_img_path)
     if os.path.isdir(bg_imgs_path):
         img_path=Path(bg_imgs_path)
         imgs=img_path.files()
@@ -153,7 +168,9 @@ if __name__ == "__main__":
             words[label]=word
 
 
-    colors=[(0,0,0),(255,0,0),(0,255,0),(0,0,255)]
+    colors=[(0,0,0),(255,0,0),(0,255,0),(0,0,0),(0,0,255),\
+            (255,255,255),(0,0,0),(104,117,123),\
+            (255,0,255),(0,0,0),(255,255,0),(0,0,0),(0,255,255)]
     font_sizes=[18,20,22,24,28,32,36,40,44,48,54,60,66]
     font_files=fonts_path.files()
 
@@ -178,17 +195,20 @@ if __name__ == "__main__":
     bg_imgs_size=len(imgs)
     random.shuffle(font_files)
     fonts_size=len(font_files)
-    anno=open(words_img_path+'/'+label_file, 'w')
+    if save_detection_img:
+        anno=open(words_img_path+'/'+label_file, 'w')
     anno_cls=open(single_words_img_path+'/'+label_file, 'w')
     for word in words:
         img_folder='/img_%s'%word
         label_folder='/gt_%s'%word
-        if not os.path.exists(words_img_path + img_folder):
-            os.popen("mkdir -p %s"%(words_img_path + img_folder))
-        if not os.path.exists(words_img_path + label_folder):
-            os.popen("mkdir -p %s"%(words_img_path + label_folder))
+        if save_detection_img:
+            if not os.path.exists(words_img_path + img_folder):
+                os.popen("mkdir -p %s"%(words_img_path + img_folder))
+            if not os.path.exists(words_img_path + label_folder):
+                os.popen("mkdir -p %s"%(words_img_path + label_folder))
         # create words on image.
         idx = 0
+        det_label=''
         while(idx < NUM_WORDS):
             img_name="/%s_%d"%(word,idx)
             
@@ -207,22 +227,26 @@ if __name__ == "__main__":
                     words,font_files[font_file_idx],font_sizes,colors)
             if bboxes[0][-1] == 0:
                 continue
-            with open(words_img_path+label_folder+img_name+".txt",'w') as label_file:
+            else:
+                if save_detection_img:
+                    det_label=open(words_img_path+label_folder+img_name+".txt",'w')
                 label=word
                 if label_type == 'detection':
                     label='1'
                 for bbox in bboxes:
-                    label_file.write("%d %d %d %d %d\n"%(\
-                        int(label),bbox[0],bbox[1],bbox[2],bbox[3]))
+                    if save_detection_img:
+                        det_label.write("%d %d %d %d %d\n"%(\
+                            int(label),bbox[0],bbox[1],bbox[2],bbox[3]))
                     if bbox[4] not in words_num:
                         words_num[bbox[4]]=1
                     else:
                         words_num[bbox[4]] += 1
                     create_word_cls_data(img,bbox,words_num[bbox[4]],anno_cls)
-            img.save(words_img_path+img_folder+img_name+'.jpg','JPEG')
-
-            anno.write("%s %s\n"%(words_img_path+img_folder+img_name+'.jpg',\
+            if save_detection_img:
+                img.save(words_img_path+img_folder+img_name+'.jpg','JPEG')
+                anno.write("%s %s\n"%(words_img_path+img_folder+img_name+'.jpg',\
                     words_img_path+label_folder+img_name+".txt"))
+                det_label.close()
             if debug:
                 draw=ImageDraw.Draw(img)
                 draw.rectangle((bbox[0],bbox[1],\
@@ -230,8 +254,11 @@ if __name__ == "__main__":
                 img.save(words_img_path + 'tt.jpg','JPEG')
             idx += 1
         word_idx += 1
-        print "Generating No. {} - {} .".format(word_idx,words[word].encode('utf-8'))
-    anno.close()
+        print "Generating No. {} - {} : {} .".format(word_idx,word,words[word].encode('utf-8'))
+        #if word_idx >= 1:
+        #    break
+    if save_detection_img:
+        anno.close()
     anno_cls.close()
     words_num_info=open(words_img_path + '/words_num_info.txt','w')
     words_num_info.write("word num\n")
