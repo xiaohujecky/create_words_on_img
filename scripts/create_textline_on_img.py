@@ -12,14 +12,14 @@ import codecs
 fonts_test=0
 debug=0
 save_detection_img=True
-NUM_WORDS=1000
+NUM_WORDS=40
 bg_imgs_path='image.txt'
 bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
 bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img.txt'
 bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img_manul_filter.txt'
-#bg_imgs_path='/data/xiaohu/textDetect/data/create_words_on_img/image/image.txt'
-words_path='conf/words999.txt'
-words_img_path='result/v2_textline_det_eng/'
+bg_imgs_path='/data/xiaohu/textDetect/data/background_imgs/bg_imgs.lst'
+words_path='conf/words_all.txt'
+words_img_path='result/v2_textline_det_ch/'
 #words_img_path='result/test3_pure_bg_fonts/'
 single_words_img_path=words_img_path + 'words_classify/'
 
@@ -138,8 +138,8 @@ def create_textline_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
     font=ImageFont.truetype(font_file,font_size)
     draw=ImageDraw.Draw(img)
     
-    h_list=range(1,height-font_size-1,random.randint(font_size,2*font_size))
-    h_loc=random.sample(h_list, random.randint(1,min(5,len(h_list))))
+    h_list=range(1, height-font_size-1, random.randint(font_size + int(font_size*0.1), 2*font_size))
+    h_loc=random.sample(h_list, random.randint(len(h_list)/2, len(h_list)))
     if len(h_loc) <= 0:
         h_loc=[random.randint(0,height-font_size-1)]
    
@@ -148,48 +148,51 @@ def create_textline_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
         text_line=''
         text_ids=''
         bbox_width=0.0
-        lower_case_letter=str(range(191,227))
+        #lower_case_letter=str(range(191,227))
         for t in xrange(text_len):
             text_id=str(random.choice(list(text_id_range)))
             text_line += texts[text_id]
-            if text_id in lower_case_letter:
-                bbox_width += 0.5
-            else:
-                bbox_width += 1.0
+            #if text_id in lower_case_letter:
+            #    bbox_width += 0.5
+            #else:
+            #    bbox_width += 1.0
             text_ids += "%s+"%text_id
-        return text_line,text_ids,bbox_width
-    text_id_range=xrange(191,253)
-    text_length = random.randint(2, max(3,int(width/font_size/2)))
-    text_on, text_ids, bbox_w = gen_random_text(text_length, text_id_range, texts)
+        return text_line,text_ids
+    #text_id_range=xrange(191,253)
+    text_id_range=xrange(1,3925)
+    text_length = random.randint(1, max(3,int(width/font_size/2)))
+    text_on, text_ids = gen_random_text(text_length, text_id_range, texts)
+    text_w, text_h = draw.textsize(text_on,font)
     #word_id = text_id
     for h in h_loc:
-        w_list=range(1,max(int(width-bbox_w*font_size-1),2))
-        w_loc=random.sample(w_list,1)
-        if len(w_loc) <= 0:
-            w_loc=[random.randint(0,width-font_size-1)]
-        for w in w_loc:
-            loc=(w,h)
-            img_color=img.getpixel(loc)
-            color=colors[color_idx]
-            if (math.fabs(color[0]-img_color[0]) + \
-                    math.fabs(color[0]-img_color[0]) + \
-                    math.fabs(color[0]-img_color[0])) < 30:
-                color_idx += 1
-            if (color_idx >= len(colors)):
-                color_idx=0
-            color=colors[color_idx]
-            draw.text(loc,text_on,color,font=font)
-            text_w, text_h = draw.textsize(text_on,font)
-            bboxes.append([loc[0],\
-                    loc[1],\
-                    #int(loc[0])+int(font_size*bbox_w),\
-                    #int(loc[1])+font_size,\
-                    int(loc[0]) + text_w,\
-                    int(loc[1]) + text_h,\
-                    text_on.encode('utf-8'),\
-                    text_ids])
-            text_length = random.randint(2, max(3,int(width/font_size/2)))
-            text_on, text_ids, bbox_w = gen_random_text(text_length, text_id_range, texts)
+        w_list=range(1,max(int(width-text_w-1),2))
+        w=random.choice(w_list)
+        loc=(w,h)
+        img_color=img.getpixel(loc)
+        color=colors[color_idx]
+        if (math.fabs(color[0]-img_color[0]) + \
+                math.fabs(color[0]-img_color[0]) + \
+                math.fabs(color[0]-img_color[0])) < 30:
+            color_idx += 1
+        if (color_idx >= len(colors)):
+            color_idx=0
+        color=colors[color_idx]
+        draw.text(loc,text_on,color,font=font)
+        xmin = int(loc[0])
+        ymin = int(loc[1])
+        xmax = int(loc[0]) + text_w
+        ymax = int(loc[1]) + text_h
+        xmax = xmax if xmax < width else width - 1 
+        ymax = ymax if ymax < height else height - 1 
+        bboxes.append([xmin,\
+                ymin,\
+                xmax,\
+                ymax,\
+                text_on.encode('utf-8'),\
+                text_ids])
+        text_length = random.randint(2, max(3,int(width/font_size/2)))
+        text_on, text_ids = gen_random_text(text_length, text_id_range, texts)
+        text_w, text_h = draw.textsize(text_on,font)
     return bboxes,img
 
 def create_word_cls_data(img, bbox, words_num, cls_label_file, offset=0.1):
@@ -269,7 +272,7 @@ if __name__ == "__main__":
             (255,255,255),(0,0,0),(104,117,123),\
             (255,0,255),(0,0,0),(255,255,0),(0,0,0),(0,255,255)]
     #colors=[(0,0,0)]
-    font_sizes=[18,20,22,24,28,32,36,40,44,48,54,60,66]
+    font_sizes=[12,14,16,18,20,22,24,28,32,36,40,44,48,54,60,66]
     font_files=fonts_path.files()
 
     # show the different fonts on the image.
@@ -297,7 +300,8 @@ if __name__ == "__main__":
         anno_1=open(words_img_path+'/'+label_file_det, 'w')
         anno_multi=open(words_img_path+'/'+label_file_cls, 'w')
     anno_cls=open(single_words_img_path+'/'+label_file_cls, 'w')
-    words_idx_list = list(xrange(191,253))
+    #words_idx_list = list(xrange(191,253))
+    words_idx_list = list(xrange(1,3925))
     for word in words_idx_list:
         word=str(word)
         img_folder='/img_%s'%word

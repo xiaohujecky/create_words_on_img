@@ -16,8 +16,11 @@ NUM_WORDS=200
 bg_imgs_path='image.txt'
 bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
 bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img.txt'
-words_path='conf/words500.txt'
-words_img_path='result/v6_multi_words_cls_500/'
+#bg_imgs_path='/data/xiaohu/textDetect/data/create_words_on_img/image/image.txt'
+words_path='conf/words999.txt'
+words_path='conf/words_all.txt'
+words_img_path='result/v5_words_cls3924/'
+#words_img_path='result/test3_pure_bg_fonts/'
 single_words_img_path=words_img_path + 'words_classify/'
 
 def text_on_img(img_name,text,font_file,font_sizes,colors):
@@ -96,10 +99,11 @@ def multi_text_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
             color=colors[color_idx]
             text=texts[word_id]
             draw.text(loc,text,color,font=font)
+            #text_w, text_h = draw.textsize(text, font)
             bboxes.append([loc[0],\
                     loc[1],\
-                    int(loc[0])+font_size,\
-                    int(loc[1])+font_size,\
+                    int(loc[0]) + font_size,\
+                    int(loc[1]) + font_size,\
                     text.encode('utf-8'),\
                     word_id])
             word_id=random.choice(texts.keys())
@@ -116,12 +120,17 @@ def create_word_cls_data(img, bbox, words_num, cls_label_file, offset=0.1):
     
     crop_offset_w = int(width*offset)
     crop_offset_h = int(height*offset)
-    xmin=bbox[0] + random.choice(xrange(-crop_offset_w*2,0))
-    ymin=bbox[1] + random.choice(xrange(-crop_offset_w*2,0))
-    xmax=bbox[2] + random.choice(xrange(0,crop_offset_h*2))
-    ymax=bbox[3] + random.choice(xrange(0,crop_offset_h*2))
-    xmin = max(1,xmin)
-    ymin = max(1,ymin)
+    if 0:
+        xmin=bbox[0] + random.choice(xrange(-crop_offset_w*2,-1))
+        ymin=bbox[1] + random.choice(xrange(-crop_offset_h*2,-1))
+        xmax=bbox[2] + random.choice(xrange(1,crop_offset_w*2))
+        ymax=bbox[3] + random.choice(xrange(1,crop_offset_h*2))
+    xmin=bbox[0] - crop_offset_w*2
+    ymin=bbox[1] - crop_offset_h*2
+    xmax=bbox[2] + crop_offset_w*2
+    ymax=bbox[3] + crop_offset_h*2 
+    xmin = max(0,xmin)
+    ymin = max(0,ymin)
     xmax = min(img.size[0]-1, xmax)
     ymax = min(img.size[1]-1, ymax)
     crop_size=(xmin,ymin,xmax,ymax)
@@ -149,7 +158,9 @@ if __name__ == "__main__":
     # we can also get files is way.
     #imgs=[f for f in os.listdir(words_img_path) if os.path.isfile(os.path.join(words_img_path,f))]
 
-    fonts_path=Path('fonts/')
+    fonts_path=Path('font/fonts/')
+    #fonts_path=Path('font/fonts_pickup/')
+    #fonts_path=Path('font/a_font/')
     label_file='word_label.txt'
     # 'classification' for different label of words
     # 'detection' for label 1 for all words 
@@ -171,6 +182,7 @@ if __name__ == "__main__":
     colors=[(0,0,0),(255,0,0),(0,255,0),(0,0,0),(0,0,255),\
             (255,255,255),(0,0,0),(104,117,123),\
             (255,0,255),(0,0,0),(255,255,0),(0,0,0),(0,255,255)]
+    #colors=[(0,0,0)]
     font_sizes=[18,20,22,24,28,32,36,40,44,48,54,60,66]
     font_files=fonts_path.files()
 
