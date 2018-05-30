@@ -12,15 +12,14 @@ import codecs
 fonts_test=0
 debug=0
 save_detection_img=True
-NUM_WORDS=40
+NUM_WORDS=100
 bg_imgs_path='image.txt'
 bg_imgs_path='/data/xiaohu/data/train/classify_words/wenziguanggao/bg_img.txt'
 bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img.txt'
 bg_imgs_path='/data/xiaohu/textDetect/tesseract/detect_words_mutithread/bg_img_manul_filter.txt'
 bg_imgs_path='/data/xiaohu/textDetect/data/background_imgs/bg_imgs.lst'
 words_path='conf/words_all.txt'
-words_img_path='result/v2_textline_det_ch/'
-#words_img_path='result/test3_pure_bg_fonts/'
+words_img_path='result/verify_code_train_v1/'
 single_words_img_path=words_img_path + 'words_classify/'
 
 def words_on_img(img_name,text,font_file,font_sizes,colors):
@@ -160,7 +159,7 @@ def create_textline_on_img(img_name,text_id,texts,font_file,font_sizes,colors):
         return text_line,text_ids
     #text_id_range=xrange(191,253)
     text_id_range=xrange(1,3925)
-    text_length = random.randint(1, max(3,int(width/font_size/2)))
+    text_length = random.randint(1, min(30,max(2,int(width/font_size/2))))
     text_on, text_ids = gen_random_text(text_length, text_id_range, texts)
     text_w, text_h = draw.textsize(text_on,font)
     #word_id = text_id
@@ -272,7 +271,7 @@ if __name__ == "__main__":
             (255,255,255),(0,0,0),(104,117,123),\
             (255,0,255),(0,0,0),(255,255,0),(0,0,0),(0,255,255)]
     #colors=[(0,0,0)]
-    font_sizes=[12,14,16,18,20,22,24,28,32,36,40,44,48,54,60,66]
+    font_sizes=[10,12,14,16,18,20,22,24,28,32,36,40,44,48,54,60,66,75]
     font_files=fonts_path.files()
 
     # show the different fonts on the image.
@@ -300,8 +299,8 @@ if __name__ == "__main__":
         anno_1=open(words_img_path+'/'+label_file_det, 'w')
         anno_multi=open(words_img_path+'/'+label_file_cls, 'w')
     anno_cls=open(single_words_img_path+'/'+label_file_cls, 'w')
-    #words_idx_list = list(xrange(191,253))
-    words_idx_list = list(xrange(1,3925))
+    words_idx_list = list(xrange(191,253))
+    #words_idx_list = list(xrange(1,3925))
     for word in words_idx_list:
         word=str(word)
         img_folder='/img_%s'%word
